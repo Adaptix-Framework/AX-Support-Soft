@@ -1,0 +1,53 @@
+[
+  {
+    "command": "execute",
+    "description": "Execute [bof] in the current process's memory",
+    "subcommands":
+    [
+      {
+        "name": "bof",
+        "message": "Task: execute BOF",
+        "description": "Execute Beacon Object File",
+        "example": "execute bof /home/user/whoami.o",
+        "args": [
+          "FILE <bof> {Path to object file}",
+          "STRING [param_data]"
+        ]
+      }
+    ]
+  },
+  {
+    "command": "ps",
+    "description": "Process manager",
+    "subcommands":
+    [
+      {
+        "name": "list",
+        "message": "Task: show process list",
+        "description": "Show process list",
+        "example": "ps list"
+      },
+      {
+        "name": "kill",
+        "message": "Task: kill process",
+        "description": "Kill a process with a given PID",
+        "example": "ps kill 7865",
+        "args": [
+          "INT <pid>"
+        ]
+      },
+      {
+        "name": "run",
+        "message": "Task: create new process",
+        "description": "Run a program",
+        "example": "run -s cmd.exe \"whoami /all\"",
+        "args": [
+          "BOOL [-s] {Suspend process}",
+          "BOOL [-o] {Output to console}",
+          "STRING <program>",
+          "STRING [args]"
+        ]
+      }
+    ]
+  }
+]

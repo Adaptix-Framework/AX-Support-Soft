@@ -1,0 +1,29 @@
+{
+  "name": "Test",
+  "description": "Test extensions",
+  "extensions": [
+    {
+      "type": "command",
+      "agents": ["beacon"],
+
+      "command": "whoami",
+      "description": "BOF implementation of the 'whoami /all' command",
+      "message": "BOF implementation: whoami /all",
+      "example": "whoami",
+      "exec": "execute bof $EXT_DIR()/whoami.$ARCH().o"
+    },
+    {
+      "type" : "command",
+      "agents": ["beacon"],
+
+      "command": "shell",
+      "message": "",
+      "description": "Execute command via cmd.exe",
+      "example": "shell whoami /all",
+      "args": [
+        "STRING <command>"
+      ],
+      "exec": "ps run -o C:\\Windows\\System32\\cmd.exe /c {command}"
+    }
+  ]
+}
