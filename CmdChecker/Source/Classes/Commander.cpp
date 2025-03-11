@@ -1,6 +1,6 @@
 #include <Classes/Commander.h>
 
-void BofPacker::Pack(QString type, QJsonValue jsonValue)
+void BofPacker::Pack(const QString &type, const QJsonValue &jsonValue)
 {
     if (type == "CSTR") {
         if (!jsonValue.isString())
@@ -87,11 +87,17 @@ void BofPacker::Pack(QString type, QJsonValue jsonValue)
             return;
 
         QByteArray bytes = QByteArray::fromBase64(jsonValue.toString().toUtf8());
+
+        QByteArray bytesLengthData;
+        int bytesLength = bytes.size();
+        bytesLengthData.append(reinterpret_cast<const char*>(&bytesLength), sizeof(bytesLength));
+
+        data.append(bytesLengthData);
         data.append(bytes);
     }
 }
 
-QString BofPacker::Build()
+QString BofPacker::Build() const
 {
     QByteArray strLengthData;
     int strLength = data.size();
@@ -107,7 +113,7 @@ Commander::Commander(){}
 
 Commander::~Commander() = default;
 
-bool Commander::AddRegCommands(QByteArray jsonData)
+bool Commander::AddRegCommands(const QByteArray &jsonData)
 {
     QList<Command> commandsList;
 
@@ -126,7 +132,7 @@ bool Commander::AddRegCommands(QByteArray jsonData)
     return true;
 }
 
-bool Commander::AddExtCommands(QString filepath, QString extName, QList<QJsonObject> extCommands)
+bool Commander::AddExtCommands(const QString &filepath, const QString &extName, QList<QJsonObject> extCommands)
 {
     QFileInfo fi(filepath);
     QString dirPath = fi.absolutePath();
@@ -145,7 +151,7 @@ bool Commander::AddExtCommands(QString filepath, QString extName, QList<QJsonObj
     return true;
 }
 
-void Commander::RemoveExtCommands(QString filepath)
+void Commander::RemoveExtCommands(const QString &filepath)
 {
     extModules.remove(filepath);
 }
@@ -192,10 +198,10 @@ Command Commander::ParseCommand(QJsonObject jsonObject)
     return cmd;
 }
 
-Argument Commander::ParseArgument(QString argString)
+Argument Commander::ParseArgument(const QString &argString)
 {
     Argument arg = {0};
-    QRegularExpression regex(R"((\w+)\s+([\[\<][^\s\]]+[\s\w-]*[\>\]])(\s*\([^\)]*\))?(?:\s+\{(.+)\})?)");
+    QRegularExpression regex(R"((\w+)\s+([\[\<][^\s\]]+[\s\w-]*[\>\]])(\s*\([^\)]*\))?(?:\s+\{([\s\S]+)\})?)");
     QRegularExpressionMatch match = regex.match(argString);
 
     if ( !match.hasMatch()) {
@@ -421,20 +427,22 @@ CommanderResult Commander::ProcessCommand(AgentData agentData, Command command, 
                     bool isWideArgs = true;
 
                     for (Argument commandArg : subcommand.args) {
-                        if (commandArg.flag && commandArg.mark == arg && args.size() > i+1 ) {
-                            if( commandArg.type == "BOOL" ) {
+                        if (commandArg.flag) {
+                            if (commandArg.type == "BOOL" && commandArg.mark == arg ) {
                                 parsedArgsMap[commandArg.mark] = "true";
                                 wideKey = commandArg.mark;
                                 isWideArgs = false;
+                                break;
                             }
-                            else {
+                            else if ( commandArg.mark == arg && args.size() > i+1 ) {
                                 ++i;
                                 parsedArgsMap[commandArg.name] = args[i];
                                 wideKey = commandArg.name;
                                 isWideArgs = false;
+                                break;
                             }
-                            break;
-                        } else if (!commandArg.flag && !parsedArgsMap.contains(commandArg.name)) {
+                        }
+                        else if (!parsedArgsMap.contains(commandArg.name)) {
                             parsedArgsMap[commandArg.name] = arg;
                             wideKey = commandArg.name;
                             isWideArgs = false;
@@ -538,7 +546,7 @@ CommanderResult Commander::ProcessCommand(AgentData agentData, Command command, 
     return CommanderResult{false, jsonDoc.toJson(), false };
 }
 
-QString Commander::ProcessExecExtension(AgentData agentData, QString filepath, QString ExecString, QList<Argument> args, QJsonObject jsonObj)
+QString Commander::ProcessExecExtension(const AgentData &agentData, const QString &filepath, QString ExecString, QList<Argument> args, QJsonObject jsonObj)
 {
     // ARCH
 
@@ -648,7 +656,6 @@ CommanderResult Commander::ProcessHelp(QStringList commandParts)
     }
     else {
         Command foundCommand;
-        Command foundSubCommand;
         QString commandName = commandParts[0];
 
         for (Command cmd : commands) {
@@ -681,11 +688,11 @@ CommanderResult Commander::ProcessHelp(QStringList commandParts)
             if(!foundCommand.example.isEmpty())
                 output << "  Example               : " + foundCommand.example + "\n";
             if( !foundCommand.subcommands.isEmpty() ) {
-                int TotalWidth = 20;
                 output << "\n";
                 output << "  SubCommand                Description\n";
                 output << "  ----------                -----------\n";
                 for ( auto subcmd : foundCommand.subcommands ) {
+                    int TotalWidth = 20;
                     int cmdWidth = subcmd.name.size();
                     if (cmdWidth > TotalWidth)
                         cmdWidth = TotalWidth;
@@ -713,6 +720,7 @@ CommanderResult Commander::ProcessHelp(QStringList commandParts)
             }
         }
         else if (commandParts.size() == 2) {
+            Command foundSubCommand;
             QString subCommandName = commandParts[1];
             for (Command subcmd : foundCommand.subcommands) {
                 if (subcmd.name == subCommandName) {
