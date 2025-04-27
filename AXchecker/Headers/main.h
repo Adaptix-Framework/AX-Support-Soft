@@ -20,5 +20,7 @@
 #include <QTableWidget>
 #include <QHeaderView>
 #include <QSpinBox>
+#include <QInputDialog>
+#include <QDateTimeEdit>
 
 #endif //AXCHECKER_MAIN_H

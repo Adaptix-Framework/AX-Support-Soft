@@ -3,35 +3,6 @@
 
 #include <main.h>
 
-class SpinTable : public QWidget
-{
-Q_OBJECT
-public:
-    QGridLayout*  layout      = nullptr;
-    QTableWidget* table       = nullptr;
-    QPushButton*  buttonAdd   = nullptr;
-    QPushButton*  buttonClear = nullptr;
-
-    SpinTable(int rows, int clomuns, QWidget* parent);
-    explicit SpinTable(QWidget* parent = nullptr) { SpinTable(0,0,parent); }
-    ~SpinTable() = default;
-};
-
-class FileSelector : public QWidget
-{
-Q_OBJECT
-
-public:
-    QVBoxLayout* layout = nullptr;
-    QLineEdit*   input  = nullptr;
-    QPushButton* button = nullptr;
-
-    QString content;
-
-    explicit FileSelector(QWidget* parent = nullptr);
-    ~FileSelector() = default;
-};
-
 class WidgetBuilder
 {
     QWidget* widget = nullptr;
@@ -47,12 +18,13 @@ public:
     explicit WidgetBuilder(const QByteArray& jsonData);
     ~WidgetBuilder();
 
-    void     BuildWidget();
-    QLayout* BuildLayout(QString layoutType, QJsonObject rootObj);
+    void     BuildWidget(bool editable);
+    QLayout* BuildLayout(QString layoutType, QJsonObject rootObj, bool editable);
     QString  GetError();
-    QWidget* GetWidget();
+    QWidget* GetWidget() const;
+    void     ClearWidget() const;
+    void     FillData(const QString &jsonString);
     QString  CollectData();
-    void     FillData(QString jsonString);
 };
 
 #endif //AXCHECKER_WIDGETBUILDER_H

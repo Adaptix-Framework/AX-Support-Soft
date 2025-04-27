@@ -83,12 +83,15 @@ void MainAX::BuildForm()
         QByteArray jsonData = ReadFileBytearray(filePath, &result);
         if (result) {
             widgetBuilder = new WidgetBuilder(jsonData);
-            if ( widgetBuilder->valid ) {
-                dialogView = new DialogView(widgetBuilder);
-                if (dialogView->exec() == QDialog::Accepted) {
-                    QString resultData = dialogView->GetData();
-                    configTextarea->setText(resultData);
-                    editButton->setEnabled(true);
+            if ( widgetBuilder->GetError().isEmpty() ) {
+                widgetBuilder->BuildWidget(false);
+                if (widgetBuilder->valid) {
+                    dialogView = new DialogView(widgetBuilder);
+                    if (dialogView->exec() == QDialog::Accepted) {
+                        QString resultData = dialogView->GetData();
+                        configTextarea->setText(resultData);
+                        editButton->setEnabled(true);
+                    }
                 }
             }
             else {

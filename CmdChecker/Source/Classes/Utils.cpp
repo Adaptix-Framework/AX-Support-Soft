@@ -180,3 +180,60 @@ QString ValidExtCommand(QJsonObject extJsonObject, bool* result)
     }
     return "";
 }
+
+QString ValidExtConstant(QJsonObject extJsonObject, bool* result)
+{
+    if( !extJsonObject.contains("name") || !extJsonObject["name"].isString() ) {
+        *result = false;
+        return "Extension must include a required 'name' parameter";
+    }
+    QString mapName = extJsonObject["name"].toString();
+
+    if ( !extJsonObject.contains("map") || !extJsonObject["map"].isObject() ) {
+        *result = false;
+        return "Extension must include a required 'map' parameter";
+    }
+    return "";
+}
+
+#include <QRandomGenerator>
+
+QString GenerateRandomString(const int length, const QString &setName)
+{
+    QString characters;
+    if (setName == "alphanumeric") {
+        characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    } else if (setName == "alphabetic") {
+        characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    } else if (setName == "numeric") {
+        characters = "0123456789";
+    } else {
+        characters = "0123456789abcdef";
+    }
+
+    QString result;
+    for (int i = 0; i < length; ++i) {
+        int index = QRandomGenerator::global()->bounded(characters.length());
+        result.append(characters.at(index));
+    }
+    return result;
+}
+
+#include <QCryptographicHash>
+
+QString GenerateHash(const QString &algorithm, int length, const QString &inputString)
+{
+    QCryptographicHash::Algorithm hashAlgo;
+
+    if (algorithm == "sha1") {
+        hashAlgo = QCryptographicHash::Sha1;
+    } else {
+        hashAlgo = QCryptographicHash::Md5;
+    }
+
+    QByteArray hash = QCryptographicHash::hash(inputString.toUtf8(), hashAlgo).toHex();
+    if (length > hash.size()) {
+        length = hash.size();
+    }
+    return QString(hash.left(length));
+}

@@ -154,6 +154,7 @@ void MainCmd::LoadExtFile()
             }
 
             QList<QJsonObject> exCommands;
+            QVector<QJsonObject> exConstants;
 
             QJsonArray extensionsArray = rootObj.value("extensions").toArray();
             for (QJsonValue extensionValue : extensionsArray) {
@@ -179,11 +180,21 @@ void MainCmd::LoadExtFile()
                     }
 
                     exCommands.push_back(extJsonObject);
+                } else if(type == "constant") {
+                    bool result = true;
+                    QString msg = ValidExtConstant(extJsonObject, &result);
+                    if (!result) {
+                        consoleTextEdit->setText(msg);
+                        return;
+                    }
+
+                    exConstants.push_back(extJsonObject);
                 }
             }
 
-            result = commander->AddExtCommands(filePath, extName, exCommands);
+            result = commander->AddExtModule(filePath, extName, exCommands, exConstants);
             if ( result ) {
+                // commander->AddExtConstants(filePath, extName, exConstants);
                 model->setStringList(commander->GetCommands());
             }
             else {

@@ -6,8 +6,11 @@
 
 class DialogView : public QDialog
 {
-    WidgetBuilder*    widgetBuilder = nullptr;
-    QVBoxLayout*      layout        = nullptr;
+    WidgetBuilder* widgetBuilder    = nullptr;
+    QSpacerItem*   horizontalSpacer = nullptr;
+    QGridLayout*   mainGridLayout   = nullptr;
+    QPushButton*   loadButton       = nullptr;
+    QPushButton*   saveButton       = nullptr;
     QDialogButtonBox* buttonBox     = nullptr;
 
 public:
@@ -15,6 +18,10 @@ public:
     ~DialogView() override;
 
     QString GetData();
+
+protected slots:
+    void onButtonLoad();
+    void onButtonSave();
 };
 
 #endif //AXCHECKER_DIALOGVIEW_H

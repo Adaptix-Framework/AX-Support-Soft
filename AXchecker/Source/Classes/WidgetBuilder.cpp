@@ -1,97 +1,15 @@
 #include <Classes/WidgetBuilder.h>
-
-SpinTable::SpinTable(int rows, int columns, QWidget* parent) : QWidget(parent)
-{
-    table = new QTableWidget(rows, columns, this);
-    table->setAutoFillBackground( false );
-    table->setShowGrid( false );
-    table->setSortingEnabled( true );
-    table->setWordWrap( true );
-    table->setCornerButtonEnabled( false );
-    table->setSelectionBehavior( QAbstractItemView::SelectRows );
-    table->setSelectionMode( QAbstractItemView::SingleSelection );
-    table->setFocusPolicy( Qt::NoFocus );
-    table->setAlternatingRowColors( true );
-    table->horizontalHeader()->setSectionResizeMode( QHeaderView::Stretch );
-    table->horizontalHeader()->setCascadingSectionResizes( true );
-    table->horizontalHeader()->setHighlightSections( false );
-    table->verticalHeader()->setVisible( false );
-
-    buttonAdd   = new QPushButton("Add", this);
-    buttonClear = new QPushButton("Clear", this);
-
-    layout = new QGridLayout( this );
-    layout->addWidget(table, 0, 0, 1, 2);
-    layout->addWidget(buttonAdd, 1, 0, 1, 1);
-    layout->addWidget(buttonClear, 1, 1, 1, 1);
-
-    this->setLayout(layout);
-
-    QObject::connect(buttonAdd, &QPushButton::clicked, this, [&]()
-    {
-        if (table->rowCount() < 1 )
-            table->setRowCount(1 );
-        else
-            table->setRowCount(table->rowCount() + 1 );
-
-        table->setItem(table->rowCount() - 1, 0, new QTableWidgetItem() );
-        table->selectRow(table->rowCount() - 1 );
-    } );
-
-    QObject::connect(buttonClear, &QPushButton::clicked, this, [&]()
-    {
-        table->setRowCount(0);
-    } );
-}
-
-FileSelector::FileSelector(QWidget* parent) : QWidget(parent)
-{
-    input = new QLineEdit(this);
-    input->setReadOnly(true);
-
-    button = new QPushButton(this);
-    button->setIcon(QIcon::fromTheme("folder"));
-
-    QHBoxLayout* layout = new QHBoxLayout(this);
-    layout->addWidget(input);
-    layout->addWidget(button);
-    layout->setContentsMargins(0, 0, 0, 0);
-    this->setLayout(layout);
-
-    connect(button, &QPushButton::clicked, this, [&]()
-    {
-        QString selectedFile = QFileDialog::getOpenFileName(this, "Select a file");
-        if (selectedFile.isEmpty())
-            return;
-
-        QString filePath = selectedFile;
-        input->setText(filePath);
-
-        QFile file(filePath);
-        if (!file.open(QIODevice::ReadOnly))
-            return;
-
-        QByteArray fileData = file.readAll();
-        file.close();
-
-        content = QString::fromUtf8(fileData.toBase64());
-    } );
-}
-
-/// MAIN CLASS
+#include <Utils/CustomElements.h>
 
 WidgetBuilder::WidgetBuilder(const QByteArray& jsonData)
 {
     QJsonParseError parseError;
     QJsonDocument document = QJsonDocument::fromJson(jsonData, &parseError);
 
-    if (parseError.error == QJsonParseError::NoError && document.isObject()) {
+    if (parseError.error == QJsonParseError::NoError && document.isObject())
         qJsonObject = document.object();
-        widget = new QWidget;
-        this->BuildWidget();
-    } else {
+    else
         error = QString("JSON parse error: %1").arg(parseError.errorString());
-    }
 }
 
 WidgetBuilder::~WidgetBuilder() = default;
@@ -101,7 +19,7 @@ QString WidgetBuilder::GetError()
     return error;
 }
 
-QLayout* WidgetBuilder::BuildLayout(QString layoutType, QJsonObject rootObj)
+QLayout* WidgetBuilder::BuildLayout(QString layoutType, QJsonObject rootObj, bool editable)
 {
     QLayout* layout = nullptr;
 
@@ -128,6 +46,7 @@ QLayout* WidgetBuilder::BuildLayout(QString layoutType, QJsonObject rootObj)
         QJsonObject elementObj = elementValue.toObject();
         QString type = elementObj["type"].toString();
         QString id = elementObj["id"].toString();
+        bool editMode = !elementObj.contains("editable") || elementObj["editable"].toBool();
 
         QJsonArray positionArray = elementObj["position"].toArray();
         int row = positionArray.size() > 0 ? positionArray[0].toInt() : 0;
@@ -164,6 +83,19 @@ QLayout* WidgetBuilder::BuildLayout(QString layoutType, QJsonObject rootObj)
                 boxLayout->addWidget(line);
             }
         }
+        else if (type == "vspacer" || type == "hspacer") {
+            auto spacer = new QSpacerItem(40, 20);
+            if (type == "vspacer")
+                spacer->changeSize(40, 20, QSizePolicy::Minimum, QSizePolicy::Expanding);
+            else
+                spacer->changeSize(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum);
+
+            if (auto gridLayout = qobject_cast<QGridLayout*>(layout)) {
+                gridLayout->addItem(spacer, row, col, rowSpan, colSpan);
+            } else if (auto boxLayout = qobject_cast<QBoxLayout*>(layout)) {
+                boxLayout->addItem(spacer);
+            }
+        }
         else if (type == "input") {
             auto lineEdit = new QLineEdit(widget);
 
@@ -178,6 +110,39 @@ QLayout* WidgetBuilder::BuildLayout(QString layoutType, QJsonObject rootObj)
 
             if (!id.isEmpty()) {
                 widgetMap[id] = lineEdit;
+            }
+        }
+        else if (type == "date_input") {
+            auto dateEdit = new QDateEdit(widget);
+
+            dateEdit->setCalendarPopup(true);
+            dateEdit->setDateTime(QDateTime::currentDateTime());
+            dateEdit->setDisplayFormat(elementObj["format"].toString());
+
+            if (auto gridLayout = qobject_cast<QGridLayout*>(layout)) {
+                gridLayout->addWidget(dateEdit, row, col, rowSpan, colSpan);
+            } else if (auto boxLayout = qobject_cast<QBoxLayout*>(layout)) {
+                boxLayout->addWidget(dateEdit);
+            }
+
+            if (!id.isEmpty()) {
+                widgetMap[id] = dateEdit;
+            }
+        }
+        else if (type == "time_input") {
+            auto timeEdit = new QTimeEdit(widget);
+
+            timeEdit->setDateTime(QDateTime::currentDateTime());
+            timeEdit->setDisplayFormat(elementObj["format"].toString());
+
+            if (auto gridLayout = qobject_cast<QGridLayout*>(layout)) {
+                gridLayout->addWidget(timeEdit, row, col, rowSpan, colSpan);
+            } else if (auto boxLayout = qobject_cast<QBoxLayout*>(layout)) {
+                boxLayout->addWidget(timeEdit);
+            }
+
+            if (!id.isEmpty()) {
+                widgetMap[id] = timeEdit;
             }
         }
         else if (type == "file_selector") {
@@ -270,9 +235,9 @@ QLayout* WidgetBuilder::BuildLayout(QString layoutType, QJsonObject rootObj)
                 widgetMap[id] = checkBox;
             }
         }
-        else if (type == "table") {
-            int rowCount = elementObj["row_count"].toInt(0);
-            int columnCount = elementObj["column_count"].toInt(0);
+        if (type == "table") {
+            int rowCount = elementObj["rowCount"].toInt(0);
+            int columnCount = elementObj["columnCount"].toInt(0);
 
             auto tableWidget = new QTableWidget(rowCount, columnCount, widget);
             tableWidget->setAutoFillBackground( false );
@@ -353,7 +318,7 @@ QLayout* WidgetBuilder::BuildLayout(QString layoutType, QJsonObject rootObj)
                 QString title = tabObj["title"].toString();
 
                 auto tabContent = new QWidget();
-                QLayout* tabLayout = BuildLayout("", tabObj);
+                QLayout* tabLayout = BuildLayout("", tabObj, editable);
                 tabContent->setLayout(tabLayout);
                 tabWidget->addTab(tabContent, title);
             }
@@ -365,7 +330,7 @@ QLayout* WidgetBuilder::BuildLayout(QString layoutType, QJsonObject rootObj)
             }
         }
         else if (type == "vlayout" || type == "hlayout" || type == "glayout") {
-            QLayout* nestedLayout = BuildLayout(type, elementObj);
+            QLayout* nestedLayout = BuildLayout(type, elementObj, editable);
 
             if (auto gridLayout = qobject_cast<QGridLayout*>(layout)) {
                 gridLayout->addLayout(nestedLayout, row, col, rowSpan, colSpan);
@@ -373,23 +338,26 @@ QLayout* WidgetBuilder::BuildLayout(QString layoutType, QJsonObject rootObj)
                 boxLayout->addLayout(nestedLayout);
             }
         }
+
+        if(editable && widgetMap[id])
+            widgetMap[id]->setDisabled(!editMode);
     }
 
     return layout;
 }
 
-
-void WidgetBuilder::BuildWidget()
+void WidgetBuilder::    BuildWidget(bool editable)
 {
     if (qJsonObject.isEmpty())
         return;
 
-    auto layout = BuildLayout("", qJsonObject);
+    widget = new QWidget;
+    auto layout = BuildLayout("", qJsonObject, editable);
     widget->setLayout(layout);
     valid = true;
 }
 
-QWidget *WidgetBuilder::GetWidget()
+QWidget *WidgetBuilder::GetWidget() const
 {
     return widget;
 }
@@ -402,16 +370,22 @@ QString WidgetBuilder::CollectData()
         const QString& id = it.key();
         widget = it.value();
 
-        if (auto lineEdit = qobject_cast<QLineEdit*>(widget)) {
+        if (auto lineEdit = qobject_cast<QLineEdit *>(widget)) {
             collectedData[id] = lineEdit->text();
+        }
+
+        else if (auto timeEdit = qobject_cast<QTimeEdit *>(widget)) {
+            QTime time = timeEdit->time();
+            collectedData[id] = time.toString(timeEdit->displayFormat());
+        }
+
+        else if (auto dateEdit = qobject_cast<QDateEdit *>(widget)) {
+            QDate date = dateEdit->date();
+            collectedData[id] = date.toString(dateEdit->displayFormat());
         }
 
         else if (auto fileSelector = qobject_cast<FileSelector*>(widget)) {
             collectedData[id] = fileSelector->content;
-        }
-
-        else if (auto lineEdit = qobject_cast<QLineEdit*>(widget)) {
-            collectedData[id] = lineEdit->text();
         }
 
         else if (auto comboBox = qobject_cast<QComboBox*>(widget)) {
@@ -422,8 +396,8 @@ QString WidgetBuilder::CollectData()
             collectedData[id] = spinBox->value();
         }
 
-        else if (auto plainTextEdit = qobject_cast<QPlainTextEdit*>(widget)) {
-            collectedData[id] = plainTextEdit->toPlainText();
+        else if (auto textEdit = qobject_cast<QPlainTextEdit*>(widget)) {
+            collectedData[id] = textEdit->toPlainText();
         }
 
         else if (auto checkBox = qobject_cast<QCheckBox*>(widget)) {
@@ -439,13 +413,13 @@ QString WidgetBuilder::CollectData()
                     QTableWidgetItem* item = tableWidget->item(row, col);
                     if (item) {
                         rowData.append(item->text());
-                        qDebug() << item->text();
                     } else {
                         rowData.append("");
                     }
                 }
                 tableData.append(rowData);
             }
+
             collectedData[id] = tableData;
         }
 
@@ -469,11 +443,11 @@ QString WidgetBuilder::CollectData()
     }
 
     QJsonDocument jsonDocument(collectedData);
-    QByteArray doc = jsonDocument.toJson(QJsonDocument::Indented);
+    QByteArray doc = jsonDocument.toJson(QJsonDocument::Compact);
     return QString::fromUtf8(doc);
 }
 
-void WidgetBuilder::FillData(QString jsonString)
+void WidgetBuilder::FillData(const QString &jsonString)
 {
     QJsonDocument jsonDoc = QJsonDocument::fromJson(jsonString.toUtf8());
     if (!jsonDoc.isObject()) {
@@ -489,11 +463,24 @@ void WidgetBuilder::FillData(QString jsonString)
         if (!widgetMap.contains(id)) {
             continue;
         }
-
-        QWidget* widget = widgetMap[id];
+        auto widget = widgetMap[id];
 
         if (auto lineEdit = qobject_cast<QLineEdit*>(widget)) {
             lineEdit->setText(value.toString());
+        }
+
+        else if (auto timeEdit = qobject_cast<QTimeEdit *>(widget)) {
+            QTime time = QTime::fromString(value.toString(), timeEdit->displayFormat());
+            if (time.isValid()) {
+                timeEdit->setTime(time);
+            }
+        }
+
+        else if (auto dateEdit = qobject_cast<QDateEdit *>(widget)) {
+            QDate date = QDate::fromString(value.toString(), dateEdit->displayFormat());
+            if (date.isValid()) {
+                dateEdit->setDate(date);
+            }
         }
 
         else if (auto comboBox = qobject_cast<QComboBox*>(widget)) {
@@ -554,4 +541,9 @@ void WidgetBuilder::FillData(QString jsonString)
             }
         }
     }
+}
+
+void WidgetBuilder::ClearWidget() const
+{
+    delete widget;
 }

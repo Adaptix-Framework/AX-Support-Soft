@@ -30,6 +30,8 @@ add_executable(AXchecker
         Headers/Classes/WidgetBuilder.h
         Source/Classes/DialogView.cpp
         Headers/Classes/DialogView.h
+        Headers/Utils/CustomElements.h
+        Source/Utils/CustomElements.cpp
 )
 
 target_link_libraries(AXchecker

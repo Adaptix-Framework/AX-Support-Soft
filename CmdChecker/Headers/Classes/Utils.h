@@ -38,4 +38,10 @@ QString ValidCommand(QJsonObject extJsonObject, bool* result);
 
 QString ValidExtCommand(QJsonObject extJsonObject, bool* result);
 
+QString ValidExtConstant(QJsonObject extJsonObject, bool* result);
+
+QString GenerateRandomString(int length, const QString &setName);
+
+QString GenerateHash(const QString &algorithm, int length, const QString &inputString);
+
 #endif //AXCHECKER_UTILS_H
